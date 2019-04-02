@@ -144,6 +144,8 @@ if __name__ == '__main__':
             index_intensity = np.concatenate(scans, axis=1)
             mass_array = td.indexToMz(frame_id_int, index_intensity[0])
             mass_intensity = np.around(np.array(zip(mass_array, index_intensity[1])), decimals=4)
+            if len(mass_intensity) == 0:
+                continue
             sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
             # mass_intensity.sort(key=lambda x: x[0])
 
