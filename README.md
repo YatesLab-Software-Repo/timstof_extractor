@@ -1,6 +1,6 @@
 # timstof
 ## Set up
-Python Version = 2.7
+Python Version = 3.6
 
 Packages required:
    * numpy
