@@ -85,7 +85,7 @@ def msms_frame_parent_dict(all_frame):
 
 if __name__ == '__main__':
     if len(sys.argv)==1:
-        print "Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]"
+        print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
     else:
         analysis_dir = sys.argv[1]
 
@@ -130,7 +130,7 @@ if __name__ == '__main__':
         msms_data)
     ms2_file_name=os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     os.chdir(sys.argv[2])
-    with open(ms2_file_name, 'wb') as output_file:
+    with open(ms2_file_name, 'w') as output_file:
         output_file.write(ms2_header)
         progress = 0
         last_parent_frame = 0
@@ -143,7 +143,8 @@ if __name__ == '__main__':
             scans = td.readScans(frame_id_int, scan_begin_int, scan_end_int)
             index_intensity = np.concatenate(scans, axis=1)
             mass_array = td.indexToMz(frame_id_int, index_intensity[0])
-            mass_intensity = np.around(np.array(zip(mass_array, index_intensity[1])), decimals=4)
+            temp = np.array(list(zip(mass_array, index_intensity[1])))
+            mass_intensity = np.around(temp, decimals=4)
             if len(mass_intensity) == 0:
                 continue
             sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
@@ -186,4 +187,4 @@ if __name__ == '__main__':
 
             progress += 1
             if progress % 5000 == 0:
-                print "progress %.1f%%" % (float(progress) / len(msms_data) * 100), time.clock() - start_time
+                print("progress %.1f%%" % (float(progress) / len(msms_data) * 100), time.clock() - start_time)
