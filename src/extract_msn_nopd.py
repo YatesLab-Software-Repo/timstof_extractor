@@ -2,7 +2,8 @@ import timsdata, sqlite3, sys, time, os
 import numpy as np, matplotlib.pyplot as plt
 import sqlite3
 from sqlite3 import Error
-
+from pathlib import Path
+import glob
 def enhance_signal(intensity):
     return (intensity**1.414+100.232)**1.414
 
@@ -82,17 +83,9 @@ def msms_frame_parent_dict(all_frame):
         i += 1
     return parent_frame_id_dict
 
+def runTimstofConversiont(input, output=''):
+    analysis_dir = input
 
-if __name__ == '__main__':
-    if len(sys.argv)==1:
-        print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
-    else:
-        analysis_dir = sys.argv[1]
-
-    start_time = time.clock()
-
-    if sys.version_info.major == 2:
-        analysis_dir = unicode(analysis_dir)
     td = timsdata.TimsData(analysis_dir)
     conn = td.conn
 
@@ -129,7 +122,10 @@ if __name__ == '__main__':
     ms2_header = 'H\tExtractor\tTimsTOF_extractor\nH\tExtractorVersion\t0.0.1\nH\tComments\tTimsTOF_extractor written by Yu Gao, 2018\nH\tExtractorOptions\tMSn\nH\tAcquisitionMethod\tData-Dependent\nH\tInstrumentType\tTIMSTOF\nH\tDataType\tCentroid\nH\tScanType\tMS2\nH\tResolution\nH\tIsolationWindow\nH\tFirstScan\t1\nH\tLastScan\t%s\nH\tMonoIsotopic PrecMz\tTrue\n' % len(
         msms_data)
     ms2_file_name=os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
-    os.chdir(sys.argv[2])
+    if len(output)> 0:
+        ms2_file_name = output
+    else:
+        os.chdir(sys.argv[2])
     with open(ms2_file_name, 'w') as output_file:
         output_file.write(ms2_header)
         progress = 0
@@ -188,3 +184,33 @@ if __name__ == '__main__':
             progress += 1
             if progress % 5000 == 0:
                 print("progress %.1f%%" % (float(progress) / len(msms_data) * 100), time.clock() - start_time)
+
+if __name__ == '__main__':
+    if len(sys.argv)==1:
+        print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
+    else:
+        analysis_dir = sys.argv[1]
+
+    start_time = time.clock()
+
+    dirs_to_analyze = []
+    if analysis_dir[-1] == '*':
+        #p = Path('.')
+        #print(p)
+        for f in glob.glob(analysis_dir):
+            if os.path.isdir(f):
+                tdf_file = os.path.join(f, "analysis.tdf")
+                if os.path.exists(tdf_file):
+                    print(tdf_file)
+                    dirs_to_analyze.append(f)
+
+        for input in dirs_to_analyze:
+            ms2_file_name = os.path.basename(input).split('.')[0] + '_nopd.ms2'
+            ms2_file_name = os.path.join(input,ms2_file_name)
+            print(ms2_file_name)
+            output = input + os.path.sep + ms2_file_name
+            runTimstofConversiont(input,ms2_file_name)
+    else:
+        runTimstofConversiont(analysis_dir)
+
+
