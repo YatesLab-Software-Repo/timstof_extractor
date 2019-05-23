@@ -179,6 +179,7 @@ class TimsData:
 
     # read some peak-picked MS/MS spectra for a given list of precursors; returns a dict mapping
     # 'precursor_id' to a pair of arrays (mz_values, area_values).
+    # how proteowizard msconvert generates ms2 files
     def readPasefMsMs (self, precursor_list):
         precursors_for_dll = np.array(precursor_list, dtype=np.int64)
 
