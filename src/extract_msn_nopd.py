@@ -5,6 +5,7 @@ import sqlite3
 from sqlite3 import Error
 from pathlib import Path
 import glob
+import time
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
     mu = m_ion*m_gas/(m_ion+m_gas)
@@ -158,15 +159,14 @@ def runTimstofConversiont(input, output=''):
                 scans = td.readScans(frame_id_int, scan_begin_int, scan_end_int)
                 index_intensity = np.concatenate(scans, axis=1)
 
-                one_over_k0 = td.scanNumToOneOverK0(frame_id, [index_intensity[0]])
-                voltage = td.scanNumToVoltage(frame_id_int,  [index_intensity[0]])
+
 
 
 
 
                # print("scans: ", index_intensity);
                 mass_array = td.indexToMz(frame_id_int, index_intensity[0])
-                temp = np.array(list(zip(mass_array, index_intensity[1], one_over_k0)))
+                temp = np.array(list(zip(mass_array, index_intensity[1])))
                 mass_intensity = np.around(temp, decimals=4)
                 if len(mass_intensity) == 0:
                     continue
@@ -208,7 +208,7 @@ def runTimstofConversiont(input, output=''):
                     if mass == last_mass:
                         total_intensity += intensity
                     else:
-                        output_file.write("%.4f %.1f %.4f\n" % (last_mass, enhance_signal(total_intensity), sorted_mass_intensity[i][-1]))
+                        output_file.write("%.4f %.1f \n" % (last_mass, enhance_signal(total_intensity)))
                         total_intensity = intensity
                     last_mass = mass
 
@@ -225,7 +225,7 @@ def runTimstofConversiont(input, output=''):
         for i, frame in enumerate(all_ms1_frames):
             id = int(frame[0])
             num_scans = int(frame[8])
-            time = frame[1]
+            #time = frame[1]
             index_intensity_arr = td.readScans(id, 0, num_scans)
             index_intensity_carr = np.concatenate(index_intensity_arr, axis=1)
             mobility_index = [i for i, row in enumerate(index_intensity_arr) for j in range(len(row[0]))]
@@ -247,7 +247,7 @@ def runTimstofConversiont(input, output=''):
                                                         row[-1]))
             progress += 1
             if progress % 5000 == 0:
-                print("progress ms2: %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
+                print("progress ms1 %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
 
 
 
