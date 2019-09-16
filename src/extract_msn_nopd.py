@@ -6,7 +6,10 @@ from sqlite3 import Error
 from pathlib import Path
 import glob
 import time
+import math
 
+skip_ms2 = False
+ms2_only = False
 def K0toCCS (K0, q, m_ion, m_gas, T):
     mu = m_ion*m_gas/(m_ion+m_gas)
     T0 = 273.15
@@ -79,6 +82,26 @@ def select_all_Precursors(conn):
     data_all = np.array(rows)
     return data_all
 
+def generate_MS1_scan(conn, id, get_last =False):
+    cur = conn.cursor();
+    key = (id,)
+    cur.execute('''
+        select Frame, ScanNumBegin from PasefFrameMsMsInfo 
+        INNER JOIN Precursors on PasefFrameMsMsInfo.Precursor = Precursors.Id 
+        where Precursors.Parent = ? order by frame, ScanNumBegin ''', key)
+    rows = cur.fetchall()
+    if len(rows) > 0:
+        index = len(rows) - 1 if get_last else 0
+        data = np.array(rows[index])
+        tims_scan_num_begin = int(data[1])
+        frame = int(data[0])
+        place = math.ceil(math.log10(tims_scan_num_begin))
+        ms1_scan = frame * 10 ** place + tims_scan_num_begin-1
+        return ms1_scan
+    else:
+        return -1
+
+
 
 def msms_frame_parent_dict(all_frame):
     i = 1
@@ -119,7 +142,6 @@ def runTimstofConversiont(input, output=''):
     # precursor_df = pd.DataFrame(data=precursor_array, index=precursor_array[:, 0], columns=['ID', 'LargestPeakMz', 'AverageMz', 'MonoisotopicMz', 'Charge', 'ScanNumber', 'Intensity', 'Parent'])
 
     parent_frame_array = np.array(precursor_array[:, 7])
-    skip_ms2 = False
     frame_index_list = []
     last_val = 0
     for idx, val in enumerate(parent_frame_array):
@@ -149,7 +171,7 @@ def runTimstofConversiont(input, output=''):
             last_parent_frame = 0
             for each_msms_data in msms_data:
                 frame_id, scan_begin, scan_end, precursor_mass, isolation_width, collision_energy, precursor_seq = each_msms_data
-                ms_ms = td.readPasefMsMs([precursor_seq]);
+                #ms_ms = td.readPasefMsMs([precursor_seq]);
 
                 # print frame_id,scan_begin, scan_end, precursor_mass
                 frame_id_int = int(frame_id)
@@ -158,15 +180,20 @@ def runTimstofConversiont(input, output=''):
                 precursor_seq_int = int(precursor_seq)
                 scans = td.readScans(frame_id_int, scan_begin_int, scan_end_int)
                 index_intensity = np.concatenate(scans, axis=1)
+                mobility_index = [i for i, row in enumerate(scans) for j in range(len(row[0]))]
 
+                place = math.ceil(math.log10(scan_begin_int))
+                scan = frame_id_int * 10 ** place + scan_begin_int
 
+                one_over_k0 = td.scanNumToOneOverK0(frame_id_int,mobility_index )
+                #voltage = td.scanNumToVoltage(frame_id_int,  [index_intensity[0]])
 
 
 
 
                # print("scans: ", index_intensity);
                 mass_array = td.indexToMz(frame_id_int, index_intensity[0])
-                temp = np.array(list(zip(mass_array, index_intensity[1])))
+                temp = np.array(list(zip(mass_array, index_intensity[1], one_over_k0)))
                 mass_intensity = np.around(temp, decimals=4)
                 if len(mass_intensity) == 0:
                     continue
@@ -184,7 +211,7 @@ def runTimstofConversiont(input, output=''):
 
                 if mass_charge_list[3] != 0:
                     mz = (mass_charge_list[2] - 1.0072766) * mass_charge_list[3] + 1.0072766
-                    output_file.write("S\t%06d\t%06d\t%.4f\n" % (progress, progress, mass_charge_list[2]))
+                    output_file.write("S\t%06d\t%06d\t%.4f\n" % (scan, scan, mass_charge_list[2]))
                     output_file.write("I\tRetTime\t%.2f\n" % float(all_frame[frame_id_int - 1][1]))
                     output_file.write("Z\t%d\t%.4f\n" % (mass_charge_list[3], mz))
 
@@ -195,7 +222,7 @@ def runTimstofConversiont(input, output=''):
                 else:
                     mz_charge2 = (mass_charge_list[2] - 1.0072766) * 2 + 1.0072766
                     mz_charge3 = (mass_charge_list[2] - 1.0072766) * 3 + 1.0072766
-                    output_file.write("S\t%06d\t%06d\t%.4f\n" % (progress, progress, mass_charge_list[2]))
+                    output_file.write("S\t%06d\t%06d\t%.4f\n" % (scan, scan, mass_charge_list[2]))
                     output_file.write("I\tRetTime\t%.2f\n" % float(all_frame[frame_id_int - 1][1]))
                     output_file.write("Z\t%d\t%.4f\n" % (2, mz_charge2))
                     output_file.write("Z\t%d\t%.4f\n" % (3, mz_charge3))
@@ -204,11 +231,11 @@ def runTimstofConversiont(input, output=''):
                 total_intensity = 0
 
                 for i, each_pair in enumerate(sorted_mass_intensity):
-                    mass, intensity = each_pair
+                    mass, intensity, k0 = each_pair
                     if mass == last_mass:
                         total_intensity += intensity
                     else:
-                        output_file.write("%.4f %.1f \n" % (last_mass, enhance_signal(total_intensity)))
+                        output_file.write("%.4f %.1f\n" % (last_mass, enhance_signal(total_intensity)))
                         total_intensity = intensity
                     last_mass = mass
 
@@ -218,36 +245,40 @@ def runTimstofConversiont(input, output=''):
                 progress += 1
                 if progress % 5000 == 0:
                     print("progress ms2: %.1f%%" % (float(progress) / len(msms_data) * 100), time.clock() - start_time)
+    if not ms2_only:
+        with open(ms1_file_name, 'w') as output_file:
+            output_file.write(ms2_header)
+            progress = 0
+            prev_scan = 0;
+            for i, frame in enumerate(all_ms1_frames):
+                id = int(frame[0])
+                num_scans = int(frame[8])
+                #time = frame[1]
+                index_intensity_arr = td.readScans(id, 0, num_scans)
+                index_intensity_carr = np.concatenate(index_intensity_arr, axis=1)
+                mobility_index = [i for i, row in enumerate(index_intensity_arr) for j in range(len(row[0]))]
 
-    with open(ms1_file_name, 'w') as output_file:
-        output_file.write(ms2_header)
-        progress = 0
-        for i, frame in enumerate(all_ms1_frames):
-            id = int(frame[0])
-            num_scans = int(frame[8])
-            #time = frame[1]
-            index_intensity_arr = td.readScans(id, 0, num_scans)
-            index_intensity_carr = np.concatenate(index_intensity_arr, axis=1)
-            mobility_index = [i for i, row in enumerate(index_intensity_arr) for j in range(len(row[0]))]
+                mass_array = td.indexToMz(id, index_intensity_carr[0])
+                one_over_k0 = td.scanNumToOneOverK0(id, mobility_index)
 
-            mass_array = td.indexToMz(id, index_intensity_carr[0])
-            one_over_k0 = td.scanNumToOneOverK0(id, mobility_index)
+                temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0)))
+                mass_intensity = np.around(temp, decimals=4)
+                sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
+                scan_num = generate_MS1_scan(conn, id)
+                if scan_num < 0:
+                    scan_num = generate_MS1_scan(conn, prev_scan, True) + 100
+                rt_time = 0 if i == 0 else all_frame[i-1][1]
 
-            temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0)))
-            mass_intensity = np.around(temp, decimals=4)
-            sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
+                output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
+                output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
 
-            rt_time = 0 if i == 0 else all_frame[i-1][1]
-
-            output_file.write("S\t%06d\t%06d\n" % (id, id))
-            output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
-
-            for i, row in enumerate(sorted_mass_intensity):
-                output_file.write("%.4f %.1f %.4f\n" % (row[0], row[1],
-                                                        row[-1]))
-            progress += 1
-            if progress % 5000 == 0:
-                print("progress ms1 %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
+                for i, row in enumerate(sorted_mass_intensity):
+                    output_file.write("%.4f %.1f %.4f\n" % (row[0], row[1],
+                                                            row[-1]))
+                progress += 1
+                prev_scan = id
+                if progress % 5000 == 0:
+                    print("progress ms1 %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
 
 
 
