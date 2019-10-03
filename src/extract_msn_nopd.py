@@ -8,8 +8,10 @@ import glob
 import time
 import math
 
+place_high = 3
 skip_ms2 = False
 ms2_only = False
+
 def K0toCCS (K0, q, m_ion, m_gas, T):
     mu = m_ion*m_gas/(m_ion+m_gas)
     T0 = 273.15
@@ -82,7 +84,9 @@ def select_all_Precursors(conn):
     data_all = np.array(rows)
     return data_all
 
+
 def generate_MS1_scan(conn, id, get_last =False):
+    global place_high
     cur = conn.cursor();
     key = (id,)
     cur.execute('''
@@ -96,6 +100,11 @@ def generate_MS1_scan(conn, id, get_last =False):
         tims_scan_num_begin = int(data[1])
         frame = int(data[0])
         place = math.ceil(math.log10(tims_scan_num_begin))
+        if place > place_high:
+            place_high = place
+        else:
+            place = place_high
+
         ms1_scan = frame * 10 ** place + tims_scan_num_begin-1
         return ms1_scan
     else:
@@ -117,7 +126,8 @@ def msms_frame_parent_dict(all_frame):
         i += 1
     return parent_frame_id_dict
 
-def runTimstofConversiont(input, output=''):
+def runTimstofConversion(input, output=''):
+    global place_high
     analysis_dir = input
 
     td = timsdata.TimsData(analysis_dir)
@@ -183,6 +193,10 @@ def runTimstofConversiont(input, output=''):
                 mobility_index = [i for i, row in enumerate(scans) for j in range(len(row[0]))]
 
                 place = math.ceil(math.log10(scan_begin_int))
+                if place > place_high:
+                    place_high = place
+                else:
+                    place = place_high
                 scan = frame_id_int * 10 ** place + scan_begin_int
 
                 one_over_k0 = td.scanNumToOneOverK0(frame_id_int,mobility_index )
@@ -249,7 +263,9 @@ def runTimstofConversiont(input, output=''):
         with open(ms1_file_name, 'w') as output_file:
             output_file.write(ms2_header)
             progress = 0
-            prev_scan = 0;
+            prev_id = 0;
+            #scan_set = set()
+            prev_scan = 0
             for i, frame in enumerate(all_ms1_frames):
                 id = int(frame[0])
                 num_scans = int(frame[8])
@@ -266,7 +282,16 @@ def runTimstofConversiont(input, output=''):
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
                 scan_num = generate_MS1_scan(conn, id)
                 if scan_num < 0:
-                    scan_num = generate_MS1_scan(conn, prev_scan, True) + 100
+                    scan_num = generate_MS1_scan(conn, prev_id, True) + 10
+                    while scan_num <= prev_scan:
+                        scan_num += 10
+                    prev_scan = scan_num
+                    #scan_set.add(scan_num)
+                else:
+                    #scan_set.add(scan_num)
+                    prev_scan = scan_num
+                    prev_id = id
+
                 rt_time = 0 if i == 0 else all_frame[i-1][1]
 
                 output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
@@ -276,7 +301,6 @@ def runTimstofConversiont(input, output=''):
                     output_file.write("%.4f %.1f %.4f\n" % (row[0], row[1],
                                                             row[-1]))
                 progress += 1
-                prev_scan = id
                 if progress % 5000 == 0:
                     print("progress ms1 %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
 
@@ -302,12 +326,13 @@ if __name__ == '__main__':
                     dirs_to_analyze.append(f)
 
         for input in dirs_to_analyze:
+            place_high = 3
             ms2_file_name = os.path.basename(input).split('.')[0] + '_nopd.ms2'
             ms2_file_name = os.path.join(input,ms2_file_name)
             print(ms2_file_name)
             output = input + os.path.sep + ms2_file_name
-            runTimstofConversiont(input,ms2_file_name)
+            runTimstofConversion(input, ms2_file_name)
     else:
-        runTimstofConversiont(analysis_dir)
+        runTimstofConversion(analysis_dir)
 
 
