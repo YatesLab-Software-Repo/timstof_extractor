@@ -8,8 +8,7 @@ from ctypes import *
 
 if sys.platform[:5] == "win32":
     # insert path here 
-    # libname = '/path/to/timsdata.dll'
-    libname = 'C:/Users/titus/Documents/workfolder/repos/timstof/lib/timsdata.dll'
+    libname = '/path/to/timsdata.dll'
     print(libname)
 elif sys.platform[:5] == "linux":
     libname = "/home/yateslab/gitrepos/timstof/lib/libtimsdata.so"
