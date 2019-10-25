@@ -124,7 +124,7 @@ def generate_ms1_scan_v2(frame_id, precursor_list):
         id = precursor_list[precursor_counter-1][0]
         parent = precursor_list[precursor_counter-1][-1]
         return id+parent+1, id, parent
-    else :
+    else:
         id = precursor_list[precursor_counter][0]
         parent = precursor_list[precursor_counter][-1]
         return id+parent-1,  id, parent
