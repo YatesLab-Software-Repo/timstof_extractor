@@ -7,11 +7,12 @@ from pathlib import Path
 import glob
 import time
 import math
+from sortedcontainers import SortedDict
 
 place_high = 3
 precursor_counter = 0
-skip_ms2 = False
-ms2_only = False
+convert_ms2 = True
+convert_ms1 = True
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
     mu = m_ion*m_gas/(m_ion+m_gas)
@@ -115,12 +116,12 @@ def generate_MS1_scan(conn, id, get_last =False):
 def generate_ms1_scan_v2(frame_id, precursor_list):
     global precursor_counter
     while precursor_counter < len(precursor_list) and precursor_list[precursor_counter][-1] < frame_id:
-        precursor_counter+=1
+        precursor_counter += 1
     if precursor_counter >= len(precursor_list):
         id = precursor_list[len(precursor_list)-1][0]
         parent = precursor_list[len(precursor_list)-1][-1]
         return id+parent+1, id, parent
-    elif precursor_list[precursor_counter][-1] > frame_id:
+    elif precursor_list[precursor_counter][-1] > frame_id and precursor_counter > 0:
         id = precursor_list[precursor_counter-1][0]
         parent = precursor_list[precursor_counter-1][-1]
         return id+parent+1, id, parent
@@ -145,7 +146,33 @@ def msms_frame_parent_dict(all_frame):
     return parent_frame_id_dict
 
 
-def runTimstofConversion(input, output=''):
+def build_offset_map(precursor_map, all_ms1_list):
+    offset = 0
+    offset_map = {}
+    for row in all_ms1_list:
+        frame_id = int(row[0])
+        offset_map[frame_id] = offset
+        if frame_id in precursor_map:
+            precursor_id = int(precursor_map[frame_id][0])
+            parent = int(precursor_map[frame_id][-1])
+            offset += precursor_id + parent
+    return offset_map
+
+
+def build_frame_id_last_ms2_scan_map(precursor_list):
+    parent_ms1_scan_map = SortedDict()
+    parent_ms1_scan_map[0] = 0
+    scan_number = 0
+    for precursor_row in precursor_list:
+        frame_id = int(precursor_row[0])
+        parent = int(precursor_row[-1])
+        if parent not in parent_ms1_scan_map:
+            parent_ms1_scan_map[parent] = scan_number
+        scan_number = frame_id + parent
+    return parent_ms1_scan_map
+
+
+def run_timstof_conversion(input, output=''):
     global place_high
     global precursor_counter
     analysis_dir = input
@@ -155,6 +182,7 @@ def runTimstofConversion(input, output=''):
 
     # create a database connection
     conn = create_connection(analysis_dir)
+    precursor_map ={}
 
     with conn:
         # print("2. Query all tasks")
@@ -163,13 +191,18 @@ def runTimstofConversion(input, output=''):
         all_frame = select_all_Frames(conn)
         # print all_frame[0:5]
         precursor_list = select_all_Precursors(conn)
+        for row in precursor_list:
+            precursor_map[int(row[-1])] = row
 
     all_ms1_frames = [a for a in all_frame if a[4] == '0']
 
-    precursor_array = np.array(precursor_list)  # 'ID', 'LargestPeakMz', 'AverageMz', 'MonoisotopicMz', 'Charge', 'ScanNumber', 'Intensity', 'Parent'
-    frame_parent_dict = msms_frame_parent_dict(all_frame)
+    offset_map = build_offset_map(precursor_map, all_ms1_frames)
 
-    # precursor_df = pd.DataFrame(data=precursor_array, index=precursor_array[:, 0], columns=['ID', 'LargestPeakMz', 'AverageMz', 'MonoisotopicMz', 'Charge', 'ScanNumber', 'Intensity', 'Parent'])
+    precursor_array = np.array(precursor_list)   # 'ID', 'LargestPeakMz', 'AverageMz', 'MonoisotopicMz', 'Charge', 'ScanNumber', 'Intensity', 'Parent'
+    # frame_parent_dict = msms_frame_parent_dict(all_frame)
+    # parent_ms2_scan_map = build_frame_id_last_ms2_scan_map(precursor_list)
+
+
 
     parent_frame_array = np.array(precursor_array[:, 7])
     frame_index_list = []
@@ -206,7 +239,7 @@ def runTimstofConversion(input, output=''):
         ms1_file_name = output.replace('.ms2', '.ms1')
     else:
         os.chdir(sys.argv[2])
-    if not skip_ms2:
+    if convert_ms2:
         with open(ms2_file_name, 'w') as output_file:
             output_file.write(ms2_header)
             progress = 0
@@ -219,7 +252,8 @@ def runTimstofConversion(input, output=''):
 
                     mz_int_arr = td.readPasefMsMs([prc_id_int])
                     parent_index = int(parent)
-                    scan_id = parent_index + prc_id_int
+                    offset = offset_map[parent_index]
+                    scan_id = parent_index + prc_id_int + offset
 
                     rt_time = float(all_frame[parent_index][1])
                     avg_mz_float = float(average_mz)
@@ -236,8 +270,8 @@ def runTimstofConversion(input, output=''):
 
                     progress += 1
                     if progress % 5000 == 0:
-                        print("progress ms2: %.1f%%" % (float(progress) / len(msms_data) * 100), time.clock() - start_time)
-    if not ms2_only:
+                        print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100), time.clock() - start_time)
+    if convert_ms1:
         with open(ms1_file_name, 'w') as output_file:
             output_file.write(ms2_header)
             progress = 0
@@ -261,24 +295,27 @@ def runTimstofConversion(input, output=''):
                 temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0)))
                 mass_intensity = np.around(temp, decimals=4)
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
+                offset = offset_map[id]
+                scan_num = offset + id
+                #print("{}\t{}\t{}\n".format(scan_num, ms2_scan_num, id))
 
-                scan_num, row_id, parent_id = generate_ms1_scan_v2(id, precursor_list)
+                #scan_num, row_id, parent_id = generate_ms1_scan_v2(id, precursor_list)
 
                 rt_time = 0 if i == 0 else all_ms1_frames[i-1][1]
 
                 output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
                 output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))
-                output_file.write("I\tTIMSTOF_Source_id\t{}\n".format(row_id))
-                output_file.write("I\tTIMSTOF_Source_Frame_id\t{}\n".format(parent_id))
+                # output_file.write("I\tTIMSTOF_Source_id\t{}\n".format(row_id))
+                # output_file.write("I\tTIMSTOF_Source_Frame_id\t{}\n".format(parent_id))
 
                 output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
 
-                for i, row in enumerate(sorted_mass_intensity):
+                for row in sorted_mass_intensity:
                     output_file.write("%.4f %.1f %.4f\n" % (row[0], row[1],
                                                             row[-1]))
                 progress += 1
                 if progress % 5000 == 0:
-                    print("progress ms1 %.1f%%" % (float(progress) / len(all_frame) * 100), time.clock() - start_time)
+                    print("progress ms1 %.1f%%" % (float(progress) / len(all_ms1_frames) * 100), time.process_time() - start_time)
 
 
 if __name__ == '__main__':
@@ -286,11 +323,11 @@ if __name__ == '__main__':
         print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
     else:
         analysis_dir = sys.argv[1]
-    start_time = time.clock()
+    start_time = time.process_time()
     dirs_to_analyze = []
     if analysis_dir[-1] == '*':
-        #p = Path('.')
-        #print(p)
+        # p = Path('.')
+        # print(p)
         for f in glob.glob(analysis_dir):
             if os.path.isdir(f):
                 tdf_file = os.path.join(f, "analysis.tdf")
@@ -303,6 +340,6 @@ if __name__ == '__main__':
             ms2_file_name = os.path.join(input,ms2_file_name)
             print(ms2_file_name)
             output = input + os.path.sep + ms2_file_name
-            runTimstofConversion(input, ms2_file_name)
+            run_timstof_conversion(input, ms2_file_name)
     else:
-        runTimstofConversion(analysis_dir)
+        run_timstof_conversion(analysis_dir)
