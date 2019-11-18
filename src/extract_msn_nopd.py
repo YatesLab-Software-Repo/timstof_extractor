@@ -323,6 +323,13 @@ if __name__ == '__main__':
         print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
     else:
         analysis_dir = sys.argv[1]
+    for x in sys.argv:
+        if x == "--skip-ms1":
+            print("<<<<: skipping ms1")
+            convert_ms1 = False
+        elif x == "--skip-ms2":
+            print("<<<<: skipping ms2")
+            convert_ms2 = False
     start_time = time.process_time()
     dirs_to_analyze = []
     if analysis_dir[-1] == '*':
@@ -343,5 +350,5 @@ if __name__ == '__main__':
             run_timstof_conversion(input, ms2_file_name)
     else:
         ms2_file_name = os.path.basename(analysis_dir).split('.')[0] + '_nopd.ms2'
-        ms2_file_name = sys.argv[2] + ms2_file_name.split("/")[-1]
+        ms2_file_name = sys.argv[2] + os.path.sep + ms2_file_name
         run_timstof_conversion(analysis_dir, ms2_file_name)
