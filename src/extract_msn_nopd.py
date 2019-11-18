@@ -237,8 +237,8 @@ def run_timstof_conversion(input, output=''):
     if len(output)> 0:
         ms2_file_name = output
         ms1_file_name = output.replace('.ms2', '.ms1')
-    else:
-        os.chdir(sys.argv[2])
+    #else:
+       # os.chdir(sys.argv[2])
     if convert_ms2:
         with open(ms2_file_name, 'w') as output_file:
             output_file.write(ms2_header)
@@ -337,9 +337,11 @@ if __name__ == '__main__':
         for input in dirs_to_analyze:
             place_high = 3
             ms2_file_name = os.path.basename(input).split('.')[0] + '_nopd.ms2'
-            ms2_file_name = os.path.join(input,ms2_file_name)
+            ms2_file_name = os.path.join(input, ms2_file_name)
             print(ms2_file_name)
             output = input + os.path.sep + ms2_file_name
             run_timstof_conversion(input, ms2_file_name)
     else:
-        run_timstof_conversion(analysis_dir)
+        ms2_file_name = os.path.basename(analysis_dir).split('.')[0] + '_nopd.ms2'
+        ms2_file_name = sys.argv[2] + ms2_file_name.split("/")[-1]
+        run_timstof_conversion(analysis_dir, ms2_file_name)

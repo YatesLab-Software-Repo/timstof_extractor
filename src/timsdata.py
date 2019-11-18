@@ -11,7 +11,8 @@ if sys.platform[:5] == "win32":
     libname = 'lib/timsdata.dll'
     print(libname)
 elif sys.platform[:5] == "linux":
-    libname = "lib/libtimsdata.so"
+    p = os.path.dirname(os.path.abspath(__file__))
+    libname = p+"/lib/libtimsdata.so"
 else:
     raise Exception("Unsupported platform.")
     
