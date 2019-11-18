@@ -7,7 +7,9 @@ import os, sys
 from ctypes import *
 
 if sys.platform[:5] == "win32":
-    # insert path here 
+    # insert path here
+    p = os.path.dirname(os.path.abspath(__file__))
+    libname = p+"/lib/libtimsdata.so"
     libname = 'lib/timsdata.dll'
     print(libname)
 elif sys.platform[:5] == "linux":
