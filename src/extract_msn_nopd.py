@@ -14,6 +14,7 @@ precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
 
+
 def K0toCCS (K0, q, m_ion, m_gas, T):
     mu = m_ion*m_gas/(m_ion+m_gas)
     T0 = 273.15
@@ -24,6 +25,7 @@ def K0toCCS (K0, q, m_ion, m_gas, T):
 
 def enhance_signal(intensity):
     return (intensity**1.414+100.232)**1.414
+
 
 def create_connection(analysis_dir):
     import os
@@ -159,6 +161,28 @@ def build_offset_map(precursor_map, all_ms1_list):
     return offset_map
 
 
+def build_frame_id_ms1_scan_map(precursor_map, all_ms1_list):
+    frame_id_ms1_scan_map = {}
+    ms2_map = {}
+    prev_scan = 0
+    for row in all_ms1_list:
+        frame_id = int(row[0])
+        ms1_scan = frame_id if frame_id > prev_scan else prev_scan+1
+        frame_id_ms1_scan_map[frame_id] = ms1_scan
+        prev_scan = ms1_scan
+        if frame_id in precursor_map:
+            if frame_id not in ms2_map:
+                ms2_map[frame_id] = {}
+            for count, rows in enumerate(precursor_map[frame_id]):
+                # parent = int(rows[-1])
+                prec_id = int(rows[0])
+                prev_scan = ms1_scan + count + 1
+                ms2_map[frame_id][prec_id] = prev_scan
+            # precursor_id = int(precursor_map[frame_id][0])
+            # prev_scan = precursor_id + ms1_scan
+    return frame_id_ms1_scan_map, ms2_map
+
+
 def build_frame_id_last_ms2_scan_map(precursor_list):
     parent_ms1_scan_map = SortedDict()
     parent_ms1_scan_map[0] = 0
@@ -192,11 +216,16 @@ def run_timstof_conversion(input, output=''):
         # print all_frame[0:5]
         precursor_list = select_all_Precursors(conn)
         for row in precursor_list:
-            precursor_map[int(row[-1])] = row
+            parent_id = int(row[-1])
+            if parent_id not in precursor_map:
+                precursor_map[parent_id] = []
+            precursor_map[parent_id].append(row)
+
 
     all_ms1_frames = [a for a in all_frame if a[4] == '0']
 
-    offset_map = build_offset_map(precursor_map, all_ms1_frames)
+    frame_id_ms1_scan_map, ms2_scan_map = build_frame_id_ms1_scan_map(precursor_map, all_ms1_frames)
+    #offset_map = build_offset_map(precursor_map, all_ms1_frames)
 
     precursor_array = np.array(precursor_list)   # 'ID', 'LargestPeakMz', 'AverageMz', 'MonoisotopicMz', 'Charge', 'ScanNumber', 'Intensity', 'Parent'
     # frame_parent_dict = msms_frame_parent_dict(all_frame)
@@ -234,7 +263,7 @@ def run_timstof_conversion(input, output=''):
     ms2_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     ms1_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms1'
     ms1_scan_set = set()
-    if len(output)> 0:
+    if len(output) > 0:
         ms2_file_name = output
         ms1_file_name = output.replace('.ms2', '.ms1')
     #else:
@@ -244,7 +273,7 @@ def run_timstof_conversion(input, output=''):
             output_file.write(ms2_header)
             progress = 0
             for row in precursor_list:
-                prc_id, largest_preak_mz, average_mz, monoisotopic_mz, cs, scan_number, intensity, parent = row;
+                prc_id, largest_preak_mz, average_mz, monoisotopic_mz, cs, scan_number, intensity, parent = row
                 prc_id_int = int(prc_id)
                 if monoisotopic_mz is not None and cs is not None:
                     prc_mass_mz = float(monoisotopic_mz)
@@ -252,17 +281,13 @@ def run_timstof_conversion(input, output=''):
 
                     mz_int_arr = td.readPasefMsMs([prc_id_int])
                     parent_index = int(parent)
-                    offset = offset_map[parent_index]
-                    scan_id = parent_index + prc_id_int + offset
-
+                    scan_id = ms2_scan_map[parent_index][prc_id_int]
                     rt_time = float(all_frame[parent_index][1])
-                    avg_mz_float = float(average_mz)
                     output_file.write("S\t{0:06d}\t{1:06d}\t{2:.4f}\n".format(scan_id, scan_id, prc_mass_mz))
                     output_file.write("I\tTIMSTOF_Parent_ID\t{}\n".format(parent))
                     output_file.write("I\tTIMSTOF_Precursor_ID\t{}\n".format(prc_id))
                     output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
                     output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
-
                     mz_arr = mz_int_arr[prc_id_int][0]
                     int_arr = mz_int_arr[prc_id_int][1]
                     for j in range(0, len(mz_arr)):
@@ -270,7 +295,7 @@ def run_timstof_conversion(input, output=''):
 
                     progress += 1
                     if progress % 5000 == 0:
-                        print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100), time.clock() - start_time)
+                        print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100), time.process_time() - start_time)
     if convert_ms1:
         with open(ms1_file_name, 'w') as output_file:
             output_file.write(ms2_header)
@@ -279,10 +304,11 @@ def run_timstof_conversion(input, output=''):
             #scan_set = set()
             prev_scan = 0
             precursor_counter = 0
+            lines = []
             for i, frame in enumerate(all_ms1_frames):
                 id = int(frame[0])
                 num_scans = int(frame[8])
-                #time = frame[1]
+
                 index_intensity_arr = td.readScans(id, 0, num_scans)
                 index_intensity_carr = np.concatenate(index_intensity_arr, axis=1)
                 mobility_index = [i for i, row in enumerate(index_intensity_arr) for j in range(len(row[0]))]
@@ -290,33 +316,33 @@ def run_timstof_conversion(input, output=''):
                 mass_array = td.indexToMz(id, index_intensity_carr[0])
                 one_over_k0 = td.scanNumToOneOverK0(id, mobility_index)
 
-
-
                 temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0)))
                 mass_intensity = np.around(temp, decimals=4)
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
-                offset = offset_map[id]
-                scan_num = offset + id
-                #print("{}\t{}\t{}\n".format(scan_num, ms2_scan_num, id))
-
-                #scan_num, row_id, parent_id = generate_ms1_scan_v2(id, precursor_list)
+                scan_num = frame_id_ms1_scan_map[id]
 
                 rt_time = 0 if i == 0 else all_ms1_frames[i-1][1]
-
-                output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
-                output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))
-                # output_file.write("I\tTIMSTOF_Source_id\t{}\n".format(row_id))
-                # output_file.write("I\tTIMSTOF_Source_Frame_id\t{}\n".format(parent_id))
-
-                output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
-
+                lines.append("S\t%06d\t%06d\n" % (scan_num, scan_num))
+                lines.append("I\tTIMSTOF_Frame_id\t{}\n".format(id))
+                lines.append("I\tRetTime\t%.2f\n" % float(rt_time))
                 for row in sorted_mass_intensity:
-                    output_file.write("%.4f %.1f %.4f\n" % (row[0], row[1],
-                                                            row[-1]))
+                    x_str = "%.4f %.1f %.4f\n" % (row[0], row[1], row[-1])
+                    lines.append(x_str)
+                # output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
+                # output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))
+                # output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
+                # output_file.writelines("%.4f %.1f %.4f\n" % (row[0], row[1],
+                # row[-1]) for row in sorted_mass_intensity)
+                if len(lines) > 1_000_000:
+                    output_file.writelines(lines)
+                    lines = []
+
                 progress += 1
                 if progress % 5000 == 0:
-                    print("progress ms1 %.1f%%" % (float(progress) / len(all_ms1_frames) * 100), time.process_time() - start_time)
-
+                    print("progress ms1 %.1f%%" % (float(progress) / len(all_ms1_frames) * 100), time.process_time()
+                          - start_time)
+            output_file.writelines(lines)
+            lines = []
 
 if __name__ == '__main__':
     if len(sys.argv)==1:
