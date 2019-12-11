@@ -7,7 +7,6 @@ from pathlib import Path
 import glob
 import time
 import math
-from sortedcontainers import SortedDict
 
 place_high = 3
 precursor_counter = 0
@@ -183,17 +182,6 @@ def build_frame_id_ms1_scan_map(precursor_map, all_ms1_list):
     return frame_id_ms1_scan_map, ms2_map
 
 
-def build_frame_id_last_ms2_scan_map(precursor_list):
-    parent_ms1_scan_map = SortedDict()
-    parent_ms1_scan_map[0] = 0
-    scan_number = 0
-    for precursor_row in precursor_list:
-        frame_id = int(precursor_row[0])
-        parent = int(precursor_row[-1])
-        if parent not in parent_ms1_scan_map:
-            parent_ms1_scan_map[parent] = scan_number
-        scan_number = frame_id + parent
-    return parent_ms1_scan_map
 
 
 def run_timstof_conversion(input, output=''):
