@@ -332,9 +332,21 @@ def run_timstof_conversion(input, output=''):
             output_file.writelines(lines)
             lines = []
 
+
+def is_valid_timstof_dir(path):
+    if os.path.isdir(path):
+        tdf_file = os.path.join(path, "analysis.tdf")
+        if os.path.exists(tdf_file):
+            return True
+    return False
+
+
 if __name__ == '__main__':
-    if len(sys.argv)==1:
-        print("Usage: extract_msn_nopd [source data directory (.d)] [target directory for output]")
+    dirs_to_analyze = []
+    if len(sys.argv) == 1:
+        print("Usage: extract_msn_nopd [source data directory (.d)]")
+        print("--skip-ms1: skips creating ms1 files")
+        print("--skip-ms2: skips creating ms2 files")
     else:
         analysis_dir = sys.argv[1]
     for x in sys.argv:
@@ -344,25 +356,28 @@ if __name__ == '__main__':
         elif x == "--skip-ms2":
             print("<<<<: skipping ms2")
             convert_ms2 = False
-    start_time = time.process_time()
-    dirs_to_analyze = []
-    if analysis_dir[-1] == '*':
-        # p = Path('.')
-        # print(p)
-        for f in glob.glob(analysis_dir):
-            if os.path.isdir(f):
-                tdf_file = os.path.join(f, "analysis.tdf")
-                if os.path.exists(tdf_file):
-                    print(tdf_file)
+        elif x[-1] == "*":
+            for f in glob.glob(x):
+                if is_valid_timstof_dir(f):
                     dirs_to_analyze.append(f)
-        for input in dirs_to_analyze:
-            place_high = 3
-            ms2_file_name = os.path.basename(input).split('.')[0] + '_nopd.ms2'
-            ms2_file_name = os.path.join(input, ms2_file_name)
+        elif is_valid_timstof_dir(x):
+            dirs_to_analyze.append(x)
+
+    start_time = time.process_time()
+    for timstof_path in dirs_to_analyze:
+        place_high = 3
+        ms2_file_name = os.path.basename(timstof_path).split('.')[0] + '_nopd.ms2'
+        ms1_file_name = os.path.basename(timstof_path).split('.')[0] + '_nopd.ms1'
+
+        ms2_file_name = os.path.join(timstof_path, ms2_file_name)
+        ms1_file_name = os.path.join(timstof_path, ms1_file_name)
+
+        print(timstof_path)
+        if convert_ms2:
             print(ms2_file_name)
-            output = input + os.path.sep + ms2_file_name
-            run_timstof_conversion(input, ms2_file_name)
-    else:
-        ms2_file_name = os.path.basename(analysis_dir).split('.')[0] + '_nopd.ms2'
-        ms2_file_name = sys.argv[2] + os.path.sep + ms2_file_name
-        run_timstof_conversion(analysis_dir, ms2_file_name)
+        if convert_ms1:
+            print(ms1_file_name)
+
+        output = timstof_path + os.path.sep + ms2_file_name
+        run_timstof_conversion(timstof_path, ms2_file_name)
+

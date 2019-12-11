@@ -16,16 +16,6 @@
         conda env create -f environment.yml
     ````
 
-### 3. Configure Python Scripts
-* Update the library paths in src/timsdata.py so that it points to the correct binary files in lib
-* If Windows is 64 bit: use "lib/win64/timsdata.dll"
-* If Windows is 32 bit: use "lib/win32/timsdata.dll"
-* Example:
-    ```
-    if sys.platform[:5] == "win32":
-        libname = "[put path here]/lib/win64/timsdata.dll"
-    ```
-
 # To Run
 ```
 conda activate timstof3
