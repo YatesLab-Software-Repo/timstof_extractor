@@ -166,17 +166,17 @@ def build_frame_id_ms1_scan_map(precursor_map, all_ms1_list):
     prev_scan = 0
     for row in all_ms1_list:
         frame_id = int(row[0])
-        ms1_scan = frame_id if frame_id > prev_scan else prev_scan+1
-        frame_id_ms1_scan_map[frame_id] = ms1_scan
-        prev_scan = ms1_scan
+        prev_scan += 1
+        frame_id_ms1_scan_map[frame_id] = prev_scan
         if frame_id in precursor_map:
             if frame_id not in ms2_map:
                 ms2_map[frame_id] = {}
-            for count, rows in enumerate(precursor_map[frame_id]):
+            for count, rows in enumerate(precursor_map[frame_id], prev_scan+1):
                 # parent = int(rows[-1])
                 prec_id = int(rows[0])
-                prev_scan = ms1_scan + count + 1
-                ms2_map[frame_id][prec_id] = prev_scan
+                #prev_scan = prev_scan + count
+                ms2_map[frame_id][prec_id] = count
+            prev_scan += len(precursor_map[frame_id])
             # precursor_id = int(precursor_map[frame_id][0])
             # prev_scan = precursor_id + ms1_scan
     return frame_id_ms1_scan_map, ms2_map
