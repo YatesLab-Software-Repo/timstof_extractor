@@ -228,11 +228,11 @@ def run_timstof_conversion(input, output=''):
         if val != last_val:
             frame_index_list.append(idx)
         last_val = val
-    frame_index_list.append(idx + 1)
-    frame_start_end_dict = {}
+#    frame_index_list.append(idx + 1)
+  #  frame_start_end_dict = {}
 
-    for idx, val in enumerate(frame_index_list[:-1]):
-        frame_start_end_dict[parent_frame_array[val]] = (frame_index_list[idx], frame_index_list[idx + 1])
+    #for idx, val in enumerate(frame_index_list[:-1]):
+       # frame_start_end_dict[parent_frame_array[val]] = (frame_index_list[idx], frame_index_list[idx + 1])
 
     ms2_header = 'H\tExtractor\tTimsTOF_extractor\n' \
                  'H\tExtractorVersion\t0.0.5\n' \
@@ -277,6 +277,14 @@ def run_timstof_conversion(input, output=''):
                     output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
                     output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
                     mz_arr = mz_int_arr[prc_id_int][0]
+                    index_arr = td.mzToIndex(parent_index, mz_arr)
+
+                    k0_arr = []
+                    k0 = td.scanNumToOneOverK0(parent_index, index_arr)
+                    k0_arr.append(k0)
+
+#                   for mz in mz_arr:
+
                     int_arr = mz_int_arr[prc_id_int][1]
                     for j in range(0, len(mz_arr)):
                         output_file.write("%.4f %.1f \n" % (mz_arr[j], int_arr[j]))
