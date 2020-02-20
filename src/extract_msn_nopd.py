@@ -235,7 +235,8 @@ def run_timstof_conversion(input, output=''):
        # frame_start_end_dict[parent_frame_array[val]] = (frame_index_list[idx], frame_index_list[idx + 1])
 
     ms2_header = 'H\tExtractor\tTimsTOF_extractor\n' \
-                 'H\tExtractorVersion\t0.0.5\n' \
+                 'H\tExtractorVersion\t0.0.6\n' \
+                 'H\tPublicationDate\t20-02-2020\n' \
                  'H\tComments\tTimsTOF_extractor written by Yu Gao, 2018\n' \
                  'H\tComments\tTimsTOF_extractor modified by Titus Jung, 2019\n' \
                  'H\tExtractorOptions\tMSn\n' \
@@ -311,8 +312,8 @@ def run_timstof_conversion(input, output=''):
 
                 mass_array = td.indexToMz(id, index_intensity_carr[0])
                 one_over_k0 = td.scanNumToOneOverK0(id, mobility_index)
-
-                temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0)))
+                voltage = td.scanNumToVoltage(id, mobility_index)
+                temp = np.array(list(zip(mass_array, index_intensity_carr[1], one_over_k0, voltage)))
                 mass_intensity = np.around(temp, decimals=4)
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
                 scan_num = frame_id_ms1_scan_map[id]
@@ -322,7 +323,7 @@ def run_timstof_conversion(input, output=''):
                 lines.append("I\tTIMSTOF_Frame_id\t{}\n".format(id))
                 lines.append("I\tRetTime\t%.2f\n" % float(rt_time))
                 for row in sorted_mass_intensity:
-                    x_str = "%.4f %.1f %.4f\n" % (row[0], row[1], row[-1])
+                    x_str = "%.4f %.1f %.4f \n" % (row[0], row[1],  row[-2])
                     lines.append(x_str)
                 # output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
                 # output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))

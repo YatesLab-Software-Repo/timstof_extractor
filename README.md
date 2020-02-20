@@ -12,4 +12,4 @@ To Install Packages Run:
 
 
 ## To Run:
-    python extract_msn_nopd.py input/ output/
+    python extract_msn_nopd.py input/ output/  
