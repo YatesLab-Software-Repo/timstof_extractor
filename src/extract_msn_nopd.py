@@ -3,7 +3,6 @@ import numpy as np, matplotlib.pyplot as plt
 from scipy import constants
 import sqlite3
 from sqlite3 import Error
-from pathlib import Path
 import glob
 import time
 import math
@@ -249,6 +248,17 @@ def run_timstof_conversion(input, output=''):
                  'H\tFirstScan\t1\n' \
                  'H\tLastScan\t%s\n' \
                  'H\tMonoIsotopic PrecMz\tTrue\n' % len(msms_data)
+
+    ms1_header = 'H\tExtractor\tTimsTOF_extractor\n' \
+                 'H\tExtractorVersion\t0.0.6\n' \
+                 'H\tPublicationDate\t20-02-2020\n' \
+                 'H\tComments\tTimsTOF_extractor written by Yu Gao, 2018\n' \
+                 'H\tComments\tTimsTOF_extractor modified by Titus Jung, 2019\n' \
+                 'H\tExtractorOptions\tMSn\n' \
+                 'H\tAcquisitionMethod\tData-Dependent\n' \
+                 'H\tInstrumentType\tTIMSTOF\n' \
+                 'H\tScanType\tMS1\n' \
+
     ms2_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     ms1_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms1'
     ms1_scan_set = set()
@@ -295,7 +305,7 @@ def run_timstof_conversion(input, output=''):
                         print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100), time.process_time() - start_time)
     if convert_ms1:
         with open(ms1_file_name, 'w') as output_file:
-            output_file.write(ms2_header)
+            output_file.write(ms1_header)
             progress = 0
             prev_id = 0
             #scan_set = set()

@@ -19,5 +19,6 @@
 # To Run
 ```
 conda activate timstof3
-python extract_msn_nopd.py input/ output/
+python extract_msn_nopd.py input/ 
 ```
+extractor will create files in  input directory 
