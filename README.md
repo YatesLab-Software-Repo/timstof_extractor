@@ -8,8 +8,8 @@ Packages required:
    
 To Install Packages Run:
 
-    pip install numpy matplotlib
+    pip install numpy matplotlib scipy
 
 
 ## To Run:
-    python extract_msn_nopd.py input/ output/  
+    python extract_msn_nopd.py input/ 

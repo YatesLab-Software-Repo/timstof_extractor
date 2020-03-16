@@ -11,6 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
+vers = "0.0.6"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -181,8 +182,6 @@ def build_frame_id_ms1_scan_map(precursor_map, all_ms1_list):
     return frame_id_ms1_scan_map, ms2_map
 
 
-
-
 def run_timstof_conversion(input, output=''):
     global place_high
     global precursor_counter
@@ -234,7 +233,7 @@ def run_timstof_conversion(input, output=''):
        # frame_start_end_dict[parent_frame_array[val]] = (frame_index_list[idx], frame_index_list[idx + 1])
 
     ms2_header = 'H\tExtractor\tTimsTOF_extractor\n' \
-                 'H\tExtractorVersion\t0.0.6\n' \
+                 'H\tExtractorVersion\t{}\n' \
                  'H\tPublicationDate\t20-02-2020\n' \
                  'H\tComments\tTimsTOF_extractor written by Yu Gao, 2018\n' \
                  'H\tComments\tTimsTOF_extractor modified by Titus Jung, 2019\n' \
@@ -246,19 +245,20 @@ def run_timstof_conversion(input, output=''):
                  'H\tResolution\n' \
                  'H\tIsolationWindow\n' \
                  'H\tFirstScan\t1\n' \
-                 'H\tLastScan\t%s\n' \
-                 'H\tMonoIsotopic PrecMz\tTrue\n' % len(msms_data)
+                 'H\tLastScan\t{}\n' \
+                 'H\tMonoIsotopic PrecMz\tTrue\n'.format(vers, len(msms_data))
 
     ms1_header = 'H\tExtractor\tTimsTOF_extractor\n' \
-                 'H\tExtractorVersion\t0.0.6\n' \
+                 'H\tExtractorVersion\t{}\n' \
                  'H\tPublicationDate\t20-02-2020\n' \
                  'H\tComments\tTimsTOF_extractor written by Yu Gao, 2018\n' \
                  'H\tComments\tTimsTOF_extractor modified by Titus Jung, 2019\n' \
                  'H\tExtractorOptions\tMSn\n' \
                  'H\tAcquisitionMethod\tData-Dependent\n' \
                  'H\tInstrumentType\tTIMSTOF\n' \
-                 'H\tScanType\tMS1\n' \
+                 'H\tScanType\tMS1\n' .format(vers)
 
+    print("Running timSTOFExtractor {}".format(vers))
     ms2_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     ms1_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms1'
     ms1_scan_set = set()

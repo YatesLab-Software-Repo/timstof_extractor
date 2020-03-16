@@ -8,7 +8,7 @@
 
 ### 2. Install Python 3.6 and required packages:
 1. Download and Run https://repo.anaconda.com/archive/Anaconda3-2019.03-Windows-x86_64.exe
-2. During Installation, choose the option to add CONDA to PATH
+
 3. After Installation, open command prompt
 4. Go to directory of the timstof package
 5. Run the following command
@@ -17,6 +17,7 @@
     ````
 
 # To Run
+Run Anaconda prompt and navigate to the timstof directory 
 ```
 conda activate timstof3
 python extract_msn_nopd.py input/ 

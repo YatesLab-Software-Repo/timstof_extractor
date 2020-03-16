@@ -9,7 +9,7 @@ from ctypes import *
 if sys.platform[:5] == "win32":
     # insert path here
     p = os.path.dirname(os.path.abspath(__file__))
-    libname = p + '{}lib{}timsdata.dll'.format(os.path.sep,os.path.sep)
+    libname = p + '{}lib{}timsdata.dll'.format(os.path.sep, os.path.sep)
     print(libname)
 elif sys.platform[:5] == "linux":
     p = os.path.dirname(os.path.abspath(__file__))
