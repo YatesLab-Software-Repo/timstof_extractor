@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-vers = "0.0.6"
+vers = "0.0.7"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -258,7 +258,6 @@ def run_timstof_conversion(input, output=''):
                  'H\tInstrumentType\tTIMSTOF\n' \
                  'H\tScanType\tMS1\n' .format(vers)
 
-    print("Running timSTOFExtractor {}".format(vers))
     ms2_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     ms1_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms1'
     ms1_scan_set = set()
@@ -362,6 +361,7 @@ def is_valid_timstof_dir(path):
 
 if __name__ == '__main__':
     dirs_to_analyze = []
+    print("Running timSTOFExtractor {}".format(vers))
     if len(sys.argv) == 1:
         print("Usage: extract_msn_nopd [source data directory (.d)]")
         print("--skip-ms1: skips creating ms1 files")
