@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-vers = "0.0.7"
+vers = "0.0.8"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -191,7 +191,7 @@ def run_timstof_conversion(input, output=''):
     conn = td.conn
 
     # create a database connection
-    conn = create_connection(analysis_dir)
+    #conn = create_connection(analysis_dir)
     precursor_map ={}
 
     with conn:
@@ -281,23 +281,21 @@ def run_timstof_conversion(input, output=''):
                     parent_index = int(parent)
                     scan_id = ms2_scan_map[parent_index][prc_id_int]
                     rt_time = float(all_frame[parent_index][1])
-                    output_file.write("S\t{0:06d}\t{1:06d}\t{2:.4f}\n".format(scan_id, scan_id, prc_mass_mz))
-                    output_file.write("I\tTIMSTOF_Parent_ID\t{}\n".format(parent))
-                    output_file.write("I\tTIMSTOF_Precursor_ID\t{}\n".format(prc_id))
-                    output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
-                    output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
-                    mz_arr = mz_int_arr[prc_id_int][0]
-                    index_arr = td.mzToIndex(parent_index, mz_arr)
+                    k0 = td.scanNumToOneOverK0(parent_index, [scan_number])
+                    if len(mz_arr) > 0:
+                        output_file.write("S\t{0:06d}\t{1:06d}\t{2:.4f}\n".format(scan_id, scan_id, prc_mass_mz))
+                        output_file.write("I\tTIMSTOF_Parent_ID\t{}\n".format(parent))
+                        output_file.write("I\tTIMSTOF_Precursor_ID\t{}\n".format(prc_id))
+                        output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
+                        output_file.write("I\tIon Mobility\t{0:.4f}\n".format(k0[0]))
+                        output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
+                        mz_arr = mz_int_arr[prc_id_int][0]
+                        index_arr = td.mzToIndex(parent_index, mz_arr)
 
-                    k0_arr = []
-                    k0 = td.scanNumToOneOverK0(parent_index, index_arr)
-                    k0_arr.append(k0)
 
-#                   for mz in mz_arr:
-
-                    int_arr = mz_int_arr[prc_id_int][1]
-                    for j in range(0, len(mz_arr)):
-                        output_file.write("%.4f %.1f \n" % (mz_arr[j], int_arr[j]))
+                        int_arr = mz_int_arr[prc_id_int][1]
+                        for j in range(0, len(mz_arr)):
+                            output_file.write("%.4f %.1f \n" % (mz_arr[j], int_arr[j]))
 
                     progress += 1
                     if progress % 5000 == 0:
@@ -326,14 +324,14 @@ def run_timstof_conversion(input, output=''):
                 mass_intensity = np.around(temp, decimals=4)
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
                 scan_num = frame_id_ms1_scan_map[id]
-
-                rt_time = 0 if i == 0 else all_ms1_frames[i-1][1]
-                lines.append("S\t%06d\t%06d\n" % (scan_num, scan_num))
-                lines.append("I\tTIMSTOF_Frame_id\t{}\n".format(id))
-                lines.append("I\tRetTime\t%.2f\n" % float(rt_time))
-                for row in sorted_mass_intensity:
-                    x_str = "%.4f %.1f %.4f \n" % (row[0], row[1],  row[-2])
-                    lines.append(x_str)
+                if len(sorted_mass_intensity) >0:
+                    rt_time = 0 if i == 0 else all_ms1_frames[i-1][1]
+                    lines.append("S\t%06d\t%06d\n" % (scan_num, scan_num))
+                    lines.append("I\tTIMSTOF_Frame_id\t{}\n".format(id))
+                    lines.append("I\tRetTime\t%.2f\n" % float(rt_time))
+                    for row in sorted_mass_intensity:
+                        x_str = "%.4f %.1f %.4f \n" % (row[0], row[1],  row[-2])
+                        lines.append(x_str)
                 # output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
                 # output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))
                 # output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
@@ -349,7 +347,7 @@ def run_timstof_conversion(input, output=''):
                           - start_time)
             output_file.writelines(lines)
             lines = []
-
+    conn.close()
 
 def is_valid_timstof_dir(path):
     if os.path.isdir(path):
@@ -399,4 +397,5 @@ if __name__ == '__main__':
 
         output = timstof_path + os.path.sep + ms2_file_name
         run_timstof_conversion(timstof_path, ms2_file_name)
-
+    duration = start_time - time.process_time();
+    print("duration is {}".format(duration))
