@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-vers = "0.0.8"
+version = "0.1.0"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -172,13 +172,9 @@ def build_frame_id_ms1_scan_map(precursor_map, all_ms1_list):
             if frame_id not in ms2_map:
                 ms2_map[frame_id] = {}
             for count, rows in enumerate(precursor_map[frame_id], prev_scan+1):
-                # parent = int(rows[-1])
                 prec_id = int(rows[0])
-                #prev_scan = prev_scan + count
                 ms2_map[frame_id][prec_id] = count
             prev_scan += len(precursor_map[frame_id])
-            # precursor_id = int(precursor_map[frame_id][0])
-            # prev_scan = precursor_id + ms1_scan
     return frame_id_ms1_scan_map, ms2_map
 
 
@@ -246,7 +242,7 @@ def run_timstof_conversion(input, output=''):
                  'H\tIsolationWindow\n' \
                  'H\tFirstScan\t1\n' \
                  'H\tLastScan\t{}\n' \
-                 'H\tMonoIsotopic PrecMz\tTrue\n'.format(vers, len(msms_data))
+                 'H\tMonoIsotopic PrecMz\tTrue\n'.format(version, len(msms_data))
 
     ms1_header = 'H\tExtractor\tTimsTOF_extractor\n' \
                  'H\tExtractorVersion\t{}\n' \
@@ -256,7 +252,7 @@ def run_timstof_conversion(input, output=''):
                  'H\tExtractorOptions\tMSn\n' \
                  'H\tAcquisitionMethod\tData-Dependent\n' \
                  'H\tInstrumentType\tTIMSTOF\n' \
-                 'H\tScanType\tMS1\n' .format(vers)
+                 'H\tScanType\tMS1\n' .format(version)
 
     ms2_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms2'
     ms1_file_name = os.path.basename(analysis_dir).split('.')[0]+'_nopd.ms1'
@@ -290,8 +286,6 @@ def run_timstof_conversion(input, output=''):
                         output_file.write("I\tIon Mobility\t{0:.4f}\n".format(k0[0]))
                         output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
                         mz_arr = mz_int_arr[prc_id_int][0]
-                        index_arr = td.mzToIndex(parent_index, mz_arr)
-
 
                         int_arr = mz_int_arr[prc_id_int][1]
                         for j in range(0, len(mz_arr)):
@@ -359,14 +353,14 @@ def is_valid_timstof_dir(path):
 
 if __name__ == '__main__':
     dirs_to_analyze = []
-    print("Running timSTOFExtractor {}".format(vers))
+    print("Running timSTOFExtractor {}".format(version))
     if len(sys.argv) == 1:
         print("Usage: extract_msn_nopd [source data directory (.d)]")
         print("--skip-ms1: skips creating ms1 files")
         print("--skip-ms2: skips creating ms2 files")
     else:
         analysis_dir = sys.argv[1]
-    for x in sys.argv:
+    for i, x in enumerate(sys.argv):
         if x == "--skip-ms1":
             print("<<<<: skipping ms1")
             convert_ms1 = False
@@ -379,6 +373,8 @@ if __name__ == '__main__':
                     dirs_to_analyze.append(f)
         elif is_valid_timstof_dir(x):
             dirs_to_analyze.append(x)
+        elif x.startswith("--output-path"):
+            output_path = x[i+1]
 
     start_time = time.process_time()
     for timstof_path in dirs_to_analyze:
