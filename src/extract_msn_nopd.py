@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-version = "0.1.0"
+version = "0.1.1"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -278,6 +278,7 @@ def run_timstof_conversion(input, output=''):
                     scan_id = ms2_scan_map[parent_index][prc_id_int]
                     rt_time = float(all_frame[parent_index][1])
                     k0 = td.scanNumToOneOverK0(parent_index, [scan_number])
+                    mz_arr = mz_int_arr[prc_id_int][0]
                     if len(mz_arr) > 0:
                         output_file.write("S\t{0:06d}\t{1:06d}\t{2:.4f}\n".format(scan_id, scan_id, prc_mass_mz))
                         output_file.write("I\tTIMSTOF_Parent_ID\t{}\n".format(parent))
@@ -285,7 +286,6 @@ def run_timstof_conversion(input, output=''):
                         output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
                         output_file.write("I\tIon Mobility\t{0:.4f}\n".format(k0[0]))
                         output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
-                        mz_arr = mz_int_arr[prc_id_int][0]
 
                         int_arr = mz_int_arr[prc_id_int][1]
                         for j in range(0, len(mz_arr)):
