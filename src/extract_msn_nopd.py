@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-version = "0.1.1"
+version = "0.1.2"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -379,8 +379,12 @@ if __name__ == '__main__':
     start_time = time.process_time()
     for timstof_path in dirs_to_analyze:
         place_high = 3
-        ms2_file_name = os.path.basename(timstof_path).split('.')[0] + '_nopd.ms2'
-        ms1_file_name = os.path.basename(timstof_path).split('.')[0] + '_nopd.ms1'
+        t_path = timstof_path
+        if t_path.endswith("/"):
+            t_path = timstof_path[:len(timstof_path)-1]
+        name = os.path.basename(t_path).split('.')[0]
+        ms2_file_name = name + '_nopd.ms2'
+        ms1_file_name = name + '_nopd.ms1'
 
         ms2_file_name = os.path.join(timstof_path, ms2_file_name)
         ms1_file_name = os.path.join(timstof_path, ms1_file_name)
