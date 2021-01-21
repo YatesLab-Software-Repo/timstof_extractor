@@ -276,7 +276,7 @@ def run_timstof_conversion(input, output=''):
                     mz_int_arr = td.readPasefMsMs([prc_id_int])
                     parent_index = int(parent)
                     scan_id = ms2_scan_map[parent_index][prc_id_int]
-                    rt_time = float(all_frame[parent_index][1])
+                    rt_time = float(all_frame[parent_index-1][1])
                     k0 = td.scanNumToOneOverK0(parent_index, [scan_number])
                     mz_arr = mz_int_arr[prc_id_int][0]
                     if len(mz_arr) > 0:
@@ -380,7 +380,7 @@ if __name__ == '__main__':
     for timstof_path in dirs_to_analyze:
         place_high = 3
         t_path = timstof_path
-        if t_path.endswith("/"):
+        if t_path.endswith(os.path.sep):
             t_path = timstof_path[:len(timstof_path)-1]
         name = os.path.basename(t_path).split('.')[0]
         ms2_file_name = name + '_nopd.ms2'
@@ -397,5 +397,7 @@ if __name__ == '__main__':
 
         output = timstof_path + os.path.sep + ms2_file_name
         run_timstof_conversion(timstof_path, ms2_file_name)
-    duration = start_time - time.process_time();
-    print("duration is {}".format(duration))
+    duration = (time.process_time() - start_time);
+    min_dur = duration/60;
+    sec_dur = duration%60;
+    print("duration is {} m {} s".format(min_dur, sec_dur))
