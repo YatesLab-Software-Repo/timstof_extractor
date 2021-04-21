@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-version = "0.1.2"
+version = "0.1.3"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
