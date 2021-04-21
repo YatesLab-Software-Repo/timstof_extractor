@@ -269,9 +269,10 @@ def run_timstof_conversion(input, output=''):
             for row in precursor_list:
                 prc_id, largest_preak_mz, average_mz, monoisotopic_mz, cs, scan_number, intensity, parent = row
                 prc_id_int = int(prc_id)
-                if monoisotopic_mz is not None and cs is not None:
+                if monoisotopic_mz is not None and cs is not None and cs > 1:
                     prc_mass_mz = float(monoisotopic_mz)
                     prc_mass = (prc_mass_mz*cs)-(cs-1)*1.007276466
+                    cs_int = int(cs)
 
                     mz_int_arr = td.readPasefMsMs([prc_id_int])
                     parent_index = int(parent)
@@ -281,11 +282,11 @@ def run_timstof_conversion(input, output=''):
                     mz_arr = mz_int_arr[prc_id_int][0]
                     if len(mz_arr) > 0:
                         output_file.write("S\t{0:06d}\t{1:06d}\t{2:.4f}\n".format(scan_id, scan_id, prc_mass_mz))
-                        output_file.write("I\tTIMSTOF_Parent_ID\t{}\n".format(parent))
-                        output_file.write("I\tTIMSTOF_Precursor_ID\t{}\n".format(prc_id))
+                        output_file.write("I\tTIMSTOF_Frame_ID\t{}\n".format(parent))
+                        output_file.write("I\tTIMSTOF_ParentTable_ID\t{}\n".format(prc_id))
                         output_file.write("I\tRetTime\t{0:.4f}\n".format(rt_time))
                         output_file.write("I\tIon Mobility\t{0:.4f}\n".format(k0[0]))
-                        output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs))
+                        output_file.write("Z\t{1}\t{0:.4f}\n".format(prc_mass, cs_int))
 
                         int_arr = mz_int_arr[prc_id_int][1]
                         for j in range(0, len(mz_arr)):
@@ -318,7 +319,7 @@ def run_timstof_conversion(input, output=''):
                 mass_intensity = np.around(temp, decimals=4)
                 sorted_mass_intensity = mass_intensity[mass_intensity[:, 0].argsort()]
                 scan_num = frame_id_ms1_scan_map[id]
-                if len(sorted_mass_intensity) >0:
+                if len(sorted_mass_intensity) > 0:
                     rt_time = 0 if i == 0 else all_ms1_frames[i-1][1]
                     lines.append("S\t%06d\t%06d\n" % (scan_num, scan_num))
                     lines.append("I\tTIMSTOF_Frame_id\t{}\n".format(id))
