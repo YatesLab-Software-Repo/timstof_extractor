@@ -11,7 +11,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-version = "0.1.3"
+version = "0.1.4"
 
 
 def K0toCCS (K0, q, m_ion, m_gas, T):
@@ -353,7 +353,7 @@ def is_valid_timstof_dir(path):
 
 
 if __name__ == '__main__':
-    dirs_to_analyze = []
+    dirs_to_analyze = set()
     print("Running timSTOFExtractor {}".format(version))
     if len(sys.argv) == 1:
         print("Usage: extract_msn_nopd [source data directory (.d)]")
@@ -361,6 +361,7 @@ if __name__ == '__main__':
         print("--skip-ms2: skips creating ms2 files")
     else:
         analysis_dir = sys.argv[1]
+    idx_to_skip_set = set()
     for i, x in enumerate(sys.argv):
         if x == "--skip-ms1":
             print("<<<<: skipping ms1")
@@ -371,11 +372,16 @@ if __name__ == '__main__':
         elif x[-1] == "*":
             for f in glob.glob(x):
                 if is_valid_timstof_dir(f):
-                    dirs_to_analyze.append(f)
-        elif is_valid_timstof_dir(x):
-            dirs_to_analyze.append(x)
+                    dirs_to_analyze.add(f)
         elif x.startswith("--output-path"):
             output_path = x[i+1]
+            idx_to_skip_set.add(i+1)
+
+    for i, x in enumerate(sys.argv):
+        if i not in idx_to_skip_set:
+            if is_valid_timstof_dir(x):
+                dirs_to_analyze.add(x)
+
 
     start_time = time.process_time()
     for timstof_path in dirs_to_analyze:
