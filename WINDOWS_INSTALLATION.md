@@ -20,6 +20,6 @@
 Run Anaconda prompt and navigate to the timstof directory 
 ```
 conda activate timstof3
-python extract_msn_nopd.py input/ 
+python extract_msn_nopd.py --skip-ms1 input/ 
 ```
 extractor will create files in  input directory 
