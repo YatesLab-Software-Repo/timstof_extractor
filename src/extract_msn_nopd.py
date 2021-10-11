@@ -16,7 +16,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-version = "0.2.0"
+version = "0.2.1"
 
 
 
@@ -326,6 +326,7 @@ if __name__ == '__main__':
     else:
         analysis_dir = sys.argv[1]
     idx_to_skip_set = set()
+    dia_mode = False;
     for i, x in enumerate(sys.argv):
         if x == "--skip-ms1":
             print("<<<<: skipping ms1")
@@ -340,6 +341,8 @@ if __name__ == '__main__':
         elif x.startswith("--output-path"):
             output_path = x[i + 1]
             idx_to_skip_set.add(i + 1)
+        elif x.startswith("--dia"):
+            dia_mode = True
 
     for i, x in enumerate(sys.argv):
         if i not in idx_to_skip_set:
@@ -366,7 +369,7 @@ if __name__ == '__main__':
             print(ms1_file_name)
 
         output = timstof_path + os.path.sep + ms2_file_name
-        run_timstof_conversion(timstof_path, ms2_file_name, dia_mode=True)
+        run_timstof_conversion(timstof_path, ms2_file_name,dia_mode)
     duration = (time.time() - start_time)
     min_dur = int(duration / 60)
     sec_dur = duration % 60
