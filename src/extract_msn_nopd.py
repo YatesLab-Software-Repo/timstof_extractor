@@ -203,10 +203,10 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now):
                     spectra = create_mz_int_spectra(mz_int_arr)
                     output_file.write(scan_head)
                     output_file.write(spectra)
-                progress += 1
-                if progress % 5000 == 0:
-                    print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100),
-                          time.process_time() - start_time)
+            progress += 1
+            if progress % 5000 == 0:
+                print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100),
+                      time.process_time() - start_time)
 
 
 def run_timstof_conversion(input, output='', dia_mode=False):
@@ -326,7 +326,7 @@ if __name__ == '__main__':
     else:
         analysis_dir = sys.argv[1]
     idx_to_skip_set = set()
-    dia_mode = False;
+    dia_mode = False
     for i, x in enumerate(sys.argv):
         if x == "--skip-ms1":
             print("<<<<: skipping ms1")
@@ -356,8 +356,8 @@ if __name__ == '__main__':
         if t_path.endswith(os.path.sep):
             t_path = timstof_path[:len(timstof_path) - 1]
         name = os.path.basename(t_path).split('.')[0]
-        ms2_file_name = name + '_nopd.ms2'
-        ms1_file_name = name + '_nopd.ms1'
+        ms2_file_name = name + '.ms2'
+        ms1_file_name = name + '.ms1'
 
         ms2_file_name = os.path.join(timstof_path, ms2_file_name)
         ms1_file_name = os.path.join(timstof_path, ms1_file_name)
