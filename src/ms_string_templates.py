@@ -30,8 +30,8 @@ header_ms1_template = 'H\tExtractor\tTimsTOF_extractor\n' \
 dda_ms2_scan_template = "S\t{scan_id:06d}\t{scan_id:06d}\t{prc_mass_mz:.4f}\n" \
                 "I\tTIMSTOF_Frame_ID\t{parent_index}\n" \
                 "I\tTIMSTOF_ParentTable_ID\t{prc_id:d}\n" \
-                "I\tRetTime\t{ret_time:.4f}\n" \
                 "I\tIon Mobility\t{k0:.4f}\n" \
+                "I\tRetTime\t{ret_time:.4f}\n" \
                 "Z\t{cs:d}\t{prc_mass:.4f}\n"
 
 

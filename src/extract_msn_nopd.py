@@ -16,6 +16,7 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
+rename = True
 version = "0.2.1"
 
 
@@ -198,8 +199,8 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now):
                     rt_time = float(all_frame[parent_index - 1][1])
                     k0 = td.scanNumToOneOverK0(parent_index, [scan_number])[0]
                     scan_head = dda_ms2_scan_template.format(scan_id=scan_id, prc_mass_mz=prc_mass_mz,
-                                                             parent_index=parent_index, prc_id=prc_id,
-                                                             ret_time=rt_time, k0=k0, cs=cs, prc_mass=prc_mass)
+                                                             parent_index=parent_index, prc_id=prc_id_int,
+                                                             ret_time=rt_time, k0=k0, cs=int(cs), prc_mass=prc_mass)
                     spectra = create_mz_int_spectra(mz_int_arr)
                     output_file.write(scan_head)
                     output_file.write(spectra)
@@ -217,8 +218,8 @@ def run_timstof_conversion(input, output='', dia_mode=False):
     td = timsdata.TimsData(analysis_dir)
     conn = td.conn
 
-    ms2_file_name = os.path.basename(analysis_dir).split('.')[0] + '_nopd.ms2'
-    ms1_file_name = os.path.basename(analysis_dir).split('.')[0] + '_nopd.ms1'
+    ms2_file_name = os.path.basename(analysis_dir).split('.')[0] + '.ms2'
+    ms1_file_name = os.path.basename(analysis_dir).split('.')[0] + '.ms1'
 
     if len(output) > 0:
         ms2_file_name = output
@@ -306,6 +307,15 @@ def run_timstof_conversion(input, output='', dia_mode=False):
                 output_file.writelines(lines)
                 lines = []
     conn.close()
+    if rename:
+        for file in os.listdir(analysis_dir):
+            if file == "analysis.tdf":
+                tdf_new_name = ms2_file_name.replace(".ms2",".tdf")
+                os.rename(os.path.join(analysis_dir, file), tdf_new_name)
+            if file == "analysis.tdf_bin":
+                tdf_bin_new_name = ms2_file_name.replace(".ms2", ".tdf_bin")
+                os.rename(os.path.join(analysis_dir, file), tdf_bin_new_name)
+
 
 
 def is_valid_timstof_dir(path):

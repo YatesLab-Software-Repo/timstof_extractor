@@ -95,7 +95,13 @@ class TimsData:
         if self.handle == 0:
             throwLastTimsDataError(self.dll)
 
-        self.conn = sqlite3.connect(os.path.join(analysis_directory, "analysis.tdf"))
+        tdf_file = "analysis.tdf"
+        for file in os.listdir(analysis_directory):
+            if file.endswith(".tdf"):
+                tdf_file = file
+                break;
+
+        self.conn = sqlite3.connect(os.path.join(analysis_directory, tdf_file))
 
         self.initial_frame_buffer_size = 128 # may grow in readScans()
 
