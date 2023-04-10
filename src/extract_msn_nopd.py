@@ -16,8 +16,8 @@ place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
-rename = True
-version = "0.2.1"
+rename = False
+version = "0.2.3"
 
 
 
@@ -183,7 +183,10 @@ def create_dia_ms2_file(td, dia_list):
 
 def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now):
     with open(ms2_file_name, 'w') as output_file:
-        ms2_header = header_ms2_template.format(version=version, date_of_creation=date_now, first_scan=-1, last_scan=-1)
+        first_scan = ms2_scan_map[int(precursor_list[0][7])][int(precursor_list[0][0])]
+        last_scan = ms2_scan_map[int(precursor_list[-1][7])][int(precursor_list[-1][0])]
+        ms2_header = header_ms2_template.format(version=version, date_of_creation=date_now, first_scan=first_scan,
+                                                last_scan=last_scan)
         output_file.write(ms2_header)
         progress = 0
         for row in precursor_list:
@@ -207,7 +210,7 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now):
             progress += 1
             if progress % 5000 == 0:
                 print("progress ms2: %.1f%%" % (float(progress) / len(precursor_list) * 100),
-                      time.process_time() - start_time)
+                      time.time() - start_time)
 
 
 def run_timstof_conversion(input, output='', dia_mode=False):
@@ -296,7 +299,7 @@ def run_timstof_conversion(input, output='', dia_mode=False):
                     # output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
                     # output_file.writelines("%.4f %.1f %.4f\n" % (row[0], row[1],
                     # row[-1]) for row in sorted_mass_intensity)
-                    if len(lines) > 1_000_000:
+                    if len(lines) > 500_000:
                         output_file.writelines(lines)
                         lines = []
 
@@ -320,8 +323,9 @@ def run_timstof_conversion(input, output='', dia_mode=False):
 
 def is_valid_timstof_dir(path):
     if os.path.isdir(path):
-        tdf_file = os.path.join(path, "analysis.tdf")
-        if os.path.exists(tdf_file):
+        tdf_list = [f for f in os.listdir(path) if f.endswith(".tdf")]
+        bin_list = [f for f in os.listdir(path) if f.endswith(".tdf_bin")]
+        if len(tdf_list) == 1 and len(bin_list) == 1:
             return True
     return False
 
