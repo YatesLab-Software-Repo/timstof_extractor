@@ -48,6 +48,8 @@ dll.tims_scannum_to_voltage.argtypes = convfunc_argtypes
 dll.tims_scannum_to_voltage.restype = c_uint32
 dll.tims_voltage_to_scannum.argtypes = convfunc_argtypes
 dll.tims_voltage_to_scannum.restype = c_uint32
+dll.tims_set_num_threads.argtypes = [c_uint32]
+dll.tims_set_num_threads.restype = None
 
 def throwLastTimsDataError (dll_handle):
     """Throw last TimsData error string as an exception."""
@@ -100,7 +102,7 @@ class TimsData:
             if file.endswith(".tdf"):
                 tdf_file = file
                 break;
-
+        self.dll.tims_set_num_threads(4)
         self.conn = sqlite3.connect(os.path.join(analysis_directory, tdf_file))
 
         self.initial_frame_buffer_size = 128 # may grow in readScans()
