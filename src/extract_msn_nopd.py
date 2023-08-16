@@ -1,3 +1,5 @@
+from enum import Enum
+
 import timsdata, sqlite3, sys, time, os
 import numpy as np, matplotlib.pyplot as plt
 from scipy import constants
@@ -11,14 +13,20 @@ from datetime import datetime
 from dia_frame import DiaFrame
 from ms_string_templates import header_ms2_template, header_ms1_template, \
     dda_ms2_scan_template
+from src.prm_data import PrmTarget, PrmFrame, create_prm_ms2_scan
 
 place_high = 3
 precursor_counter = 0
 convert_ms2 = True
 convert_ms1 = True
 rename = False
-version = "0.2.4"
+version = "0.3.0"
 batch_size = 1000
+
+class DataType(Enum):
+    DIA = 0
+    DDA = 1
+    PRM = 2
 # no batching 6 m 16 sec
 # at batch size 100  time was 5 m 7 s
 # at batch size 500  time was 4 m 34 s
@@ -100,6 +108,30 @@ def select_all_Precursors(conn):
     return data_all
 
 
+def select_all_prm_frame_msms_info(conn):
+    cur = conn.cursor()
+    rows = cur.execute(
+        'select Frame, ScanNumBegin, ScanNumEnd, IsolationMz, IsolationWidth, CollisionEnergy, Target from '
+        'PrmFrameMsMsInfo')
+    prm_frame_list = [
+        PrmFrame(frame=Frame, scan_num_begin=ScanNumBegin, scan_num_end=ScanNumEnd, isolation_mz=IsolationMz,
+                 isolation_width=IsolationWidth, collision_energy=CollisionEnergy, target=Target)
+        for Frame, ScanNumBegin, ScanNumEnd, IsolationMz, IsolationWidth, CollisionEnergy, Target in rows]
+    return prm_frame_list
+
+
+def select_all_prm_targets(conn):
+    cur = conn.cursor()
+    rows = cur.execute('select Id, ExternalId, Time, OneOverK0, MonoisotopicMz, Charge, Description from PrmTargets')
+    prm_target_list = {Id:
+                           PrmTarget(target_id=Id, external_id=ExternalId, ret_time=Time, one_over_k0=OneOverK0,
+                                     monoisotopic_mz=MonoisotopicMz,
+                                     charge=Charge, description=Description)
+                       for Id, ExternalId, Time, OneOverK0, MonoisotopicMz, Charge, Description in rows}
+
+    return prm_target_list
+
+
 def select_all_dia_frames(conn):
     cur = conn.cursor()
     rows = cur.execute('select DiaFrameMsMsWindows.windowgroup, frame, scannumbegin, scannumend, IsolationMz, '
@@ -109,7 +141,8 @@ def select_all_dia_frames(conn):
 
     dia_list = [
         DiaFrame(window_group=window_group, frame=frame, scan_num_begin=scan_num_begin, scan_num_end=scan_num_end,
-                 isolation_mz=isolation_mz, isolation_width=isolation_width, collision_energy=collision_energy, time=time)
+                 isolation_mz=isolation_mz, isolation_width=isolation_width, collision_energy=collision_energy,
+                 time=time)
         for window_group, frame, scan_num_begin, scan_num_end, isolation_mz, isolation_width, collision_energy,
             time in rows]
 
@@ -202,18 +235,6 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now, m
             if monoisotopic_mz is not None and cs is not None and cs > 1:
                 row_retrieve_list.append(row)
                 prc_id_list.append(prc_id_int)
-    #            parent_idx = int(parent)
-    #            scan_list = parent_scan_dict.get(parent_idx, [])
-   ##             scan_list.append(scan_number)
-    #            parent_scan_dict[parent_idx] = scan_list
-      #  parent_scan_k0_matrix = {}
-      #  for parent, scan_list in parent_scan_dict.items():
-    #        parent_scan_k0_matrix[parent] ={}
-    #        k0_list = td.scanNumToOneOverK0(parent, scan_list)
-    #        for i, k0 in enumerate(k0_list):
-    #            parent_scan_k0_matrix[parent][scan_list[i]] = k0
-#
-
 
         row_batch = [row_retrieve_list[x:x + batch_size] for x in range(0, len(row_retrieve_list), batch_size)]
         prc_id_batch_list = [prc_id_list[x:x + batch_size] for x in range(0, len(prc_id_list), batch_size)]
@@ -233,7 +254,7 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now, m
                     scan_id = ms2_scan_map[parent_index][prc_id_int]
                     rt_time = float(all_frame[parent_index - 1][1])
                     k0 = td.scanNumToOneOverK0(parent_index, [scan_number])[0]
-                  #  k0 = parent_scan_k0_matrix[parent_index][scan_number]
+                    #  k0 = parent_scan_k0_matrix[parent_index][scan_number]
 
                     scan_head = dda_ms2_scan_template.format(scan_id=scan_id, prc_mass_mz=prc_mass_mz,
                                                              parent_index=parent_index, prc_id=prc_id_int,
@@ -247,10 +268,46 @@ def create_dda_ms2_file(td, precursor_list, ms2_scan_map, all_frame, date_now, m
                 progress += 1
                 if progress % 5000 == 0:
                     print("progress ms2: {:.1f}% {:.1f}".format((float(progress) / len(precursor_list) * 100),
-                          time.time() - start_time))
+                                                                time.time() - start_time))
 
 
-def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", dia_mode=False):
+def create_prm_ms2_file(td, ms2_file_name):
+    with open(ms2_file_name, "w") as ms2_file:
+        prm_target_map = select_all_prm_targets(td.conn)
+        prm_frame_list = select_all_prm_frame_msms_info(td.conn)
+        prm_frame_list.sort(key=lambda x: x.frame)
+        for prm_frame in prm_frame_list:
+            prm_target = prm_target_map[prm_frame.target]
+            index_intensity_arr = td.readScans(prm_frame.frame, prm_frame.scan_num_begin, prm_frame.scan_num_end)
+            if len(index_intensity_arr) > 0:
+                scan_num_arr = [scan_num for scan_num in range(prm_frame.scan_num_begin, prm_frame.scan_num_end)]
+                one_over_k0_arr = td.scanNumToOneOverK0(prm_frame.frame, scan_num_arr)
+                index_intensity_carr = np.concatenate(index_intensity_arr, axis=1)
+                index_arr = list(set(index_intensity_carr[0]))
+                mass_array = td.indexToMz(prm_frame.frame, index_arr)
+                index_mass_dict = dict(zip(index_arr, mass_array))
+                idx_intensity_map={}
+                for scan_num_index, row in enumerate(index_intensity_arr):
+                    ook0 = one_over_k0_arr[scan_num_index]
+                    for ii in range(len(row[0])):
+                        idx = row[0][ii]
+                        mz = index_mass_dict[row[0][ii]]
+                        intensity = row[1][ii]
+                        entry = idx_intensity_map.get(idx)
+                        if entry is None:
+                            entry = [mz, intensity, ook0]
+                        else:
+                            entry[1] = entry[1] + intensity
+                        idx_intensity_map[idx] = entry
+                spectra = [entry for entry in idx_intensity_map.values()]
+                spectra.sort(key=lambda tup : tup[0])
+                ms2_scan_head = create_prm_ms2_scan(prm_target, prm_frame)
+                ms2_file.write(ms2_scan_head)
+                for row in spectra:
+                    ms2_file.write("{:.4f} {:.4f} {:.4f}\n".format(row[0], row[1], row[2]))
+
+
+def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", data_type=DataType.DDA):
     global place_high
     global precursor_counter
     analysis_dir = input
@@ -259,7 +316,9 @@ def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", dia_mode=Fals
     conn = td.conn
 
     d = str(datetime.now().strftime("%B %d, %Y %H:%M"))
-    if dia_mode:
+    if data_type == DataType.PRM:
+        create_prm_ms2_file(td, ms2_file_name=ms2_file_path)
+    elif data_type == DataType.DIA:
         with conn:
             all_frame = select_all_Frames(conn)
             all_ms1_frames = [a for a in all_frame if a[4] == '0']
@@ -267,7 +326,7 @@ def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", dia_mode=Fals
             frame_dia_map = {}
             for dia in dia_frame_list:
                 frame_dia_map.setdefault(dia.frame, []).append(dia)
-            #build_dia_frame_id_ms1_scan_map(all_ms1_frames, frame_dia_map)
+            # build_dia_frame_id_ms1_scan_map(all_ms1_frames, frame_dia_map)
             create_dia_ms2_file(td, dia_frame_list, ms2_file_name=ms2_file_path)
     else:
         precursor_map = {}
@@ -323,11 +382,6 @@ def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", dia_mode=Fals
                         for row in sorted_mass_intensity:
                             x_str = "%.4f %.1f %.4f \n" % (row[0], row[1], row[-2])
                             lines.append(x_str)
-                    # output_file.write("S\t%06d\t%06d\n" % (scan_num, scan_num))
-                    # output_file.write("I\tTIMSTOF_Frame_id\t{}\n".format(id))
-                    # output_file.write("I\tRetTime\t%.2f\n" % float(rt_time))
-                    # output_file.writelines("%.4f %.1f %.4f\n" % (row[0], row[1],
-                    # row[-1]) for row in sorted_mass_intensity)
                     if len(lines) > 500_000:
                         output_file.writelines(lines)
                         lines = []
@@ -349,7 +403,6 @@ def run_timstof_conversion(input, ms2_file_path, ms1_file_name="", dia_mode=Fals
                 os.rename(os.path.join(analysis_dir, file), tdf_bin_new_name)
 
 
-
 def is_valid_timstof_dir(path):
     if os.path.isdir(path):
         tdf_list = [f for f in os.listdir(path) if f.endswith(".tdf")]
@@ -369,7 +422,7 @@ if __name__ == '__main__':
     else:
         analysis_dir = sys.argv[1]
     idx_to_skip_set = set()
-    dia_mode = False
+    data_type = DataType.DDA
     output_path = ""
     for i, x in enumerate(sys.argv):
         if x == "--skip-ms1":
@@ -386,7 +439,9 @@ if __name__ == '__main__':
             output_path = sys.argv[i + 1]
             idx_to_skip_set.add(i + 1)
         elif x.startswith("--dia"):
-            dia_mode = True
+            data_type = DataType.DIA
+        elif x.startswith("--prm"):
+            data_type = DataType.PRM
 
     for i, x in enumerate(sys.argv):
         if i not in idx_to_skip_set:
@@ -405,11 +460,11 @@ if __name__ == '__main__':
         print(timstof_path)
         if convert_ms2:
             print(ms2_file_name)
-        if len(output_path)>0:
+        if len(output_path) > 0:
             ms2_path = os.path.join(output_path, ms2_file_name)
         else:
             ms2_path = os.path.join(timstof_path, ms2_file_name)
-        run_timstof_conversion(timstof_path, ms2_file_path=ms2_path, dia_mode=dia_mode)
+        run_timstof_conversion(timstof_path, ms2_file_path=ms2_path, data_type=data_type)
     duration = (time.time() - start_time)
     min_dur = int(duration / 60)
     sec_dur = duration % 60
