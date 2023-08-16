@@ -1,7 +1,7 @@
 import timsdata, sqlite3, sys, time, os
 import numpy as np, matplotlib.pyplot as plt
 
-analysis_dir = "/home/yateslab/projectData/census/1610Timstof/projects2020_05_26_07_167734/IP_B07_CPP_rep1_1over10_052020_S4-A1_1_2059.d/"
+analysis_dir = "IP_B07_CPP_rep1_1over10_052020_S4-A1_1_2059.d/"
 td = timsdata.TimsData(analysis_dir)
 conn = td.conn
 cursor = conn.cursor();
